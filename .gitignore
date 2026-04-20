@@ -6,6 +6,8 @@ venv/
 env/
 
 .env
+credentials_GCP.json
+token.json
 
 .pytest_cache/
 .coverage
@@ -14,3 +16,6 @@ env/
 .idea/
 
 .DS_Store
+
+# Script e guide per Apps Script (deployment manuale, non versionato)
+modifiche apps script/

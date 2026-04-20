@@ -5,6 +5,7 @@ ALLOWED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 
 
 def load_contacts(path: Path) -> list[dict]:
+    # Reads the contacts JSON file and validates each entry for required fields and correct types
     if not path.exists():
         raise FileNotFoundError(f"Contacts file not found: {path}")
 
@@ -43,6 +44,7 @@ def load_contacts(path: Path) -> list[dict]:
 
 
 def load_quotes(path: Path) -> list[str]:
+    # Reads the quotes text file and returns each non-empty line as a stripped string
     if not path.exists():
         raise FileNotFoundError(f"Quotes file not found: {path}")
 
@@ -59,6 +61,7 @@ def load_quotes(path: Path) -> list[str]:
 
 
 def load_photo_paths(path: Path) -> list[Path]:
+    # Scans the photos directory and returns only files whose extension is in ALLOWED_IMAGE_SUFFIXES
     if not path.exists():
         raise FileNotFoundError(f"Photos directory not found: {path}")
 
@@ -81,6 +84,7 @@ def load_photo_paths(path: Path) -> list[Path]:
 
 
 def load_saints(path: Path) -> list[str]:
+    # Reads the saints text file and returns each non-empty line as a stripped string
     if not path.exists():
         raise FileNotFoundError(f"Saints file not found: {path}")
 
@@ -97,6 +101,7 @@ def load_saints(path: Path) -> list[str]:
 
 
 def load_blasfemie(path: Path) -> list[str]:
+    # Reads the blasfemie text file and returns each non-empty line as a stripped string
     if not path.exists():
         raise FileNotFoundError(f"Blasfemie file not found: {path}")
 

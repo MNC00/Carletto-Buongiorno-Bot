@@ -2,36 +2,36 @@
   {
     "name": "Francesco",
     "email": "francescomancini07@gmail.com",
-    "active": true
+    "active": false
   },
   {
     "name": "Simone",
     "email": "simonsh.bas@gmail.com",
-    "active": true
+    "active": false
   },
   {
     "name": "Martina",
     "email": "martinapietrantoni.mp@gmail.com",
-    "active": true
+    "active": false
   },
   {
     "name": "alice",
     "email": "alicechiarini0@gmail.com",
-    "active": true
+    "active": false
   },
   {
     "name": "emanuele",
     "email": "emadec2000@gmail.com",
-    "active": true
+    "active": false
   },
   {
     "name": "carlo",
     "email": "brunicarlo7@gmail.com",
-    "active": true
+    "active": false
   },
   {
     "name": "pave",
     "email": "dave.radici@gmail.com",
-    "active": true
+    "active": false
   }
 ]

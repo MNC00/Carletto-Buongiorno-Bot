@@ -1,6 +1,7 @@
 from pathlib import Path
 import pytest
 from carlo_bot.infrastructure.email.builder import build_email_message
+from carlo_bot.infrastructure.storage.models import PhotoAsset
 
 
 def test_build_email_message_creates_message_with_attachment(tmp_path: Path):
@@ -50,3 +51,20 @@ def test_build_email_message_raises_if_attachment_is_missing(tmp_path: Path):
             body="Test body",
             attachment_path=missing_file,
         )
+
+
+def test_build_email_message_creates_inline_message_from_photo_asset():
+    message = build_email_message(
+        sender="bot@example.com",
+        recipients=["alice@example.com"],
+        subject="Test subject",
+        plain_body="Plain body",
+        html_body="<p>Html body</p>",
+        image_asset=PhotoAsset(name="carlo.jpg", content_bytes=b"fake-image-bytes", mime_type="image/jpeg"),
+    )
+
+    html_body = message.get_body(preferencelist=("html",))
+
+    assert message.get_body(preferencelist=("plain",)).get_content().strip() == "Plain body"
+    assert html_body is not None
+    assert any(part.get_filename() == "carlo.jpg" for part in message.walk())

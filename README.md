@@ -43,6 +43,16 @@ La V1:
 - supporta dry run e invio reale da CLI;
 - include test automatici minimi.
 
+## Base V2 gia` implementata
+
+Il progetto ora include una base tecnica per una V2 con storage remoto:
+- backend di storage astratto con supporto `filesystem` e scaffold `google_workspace`;
+- dataset separabili per `contacts` e per i contenuti collaborativi;
+- supporto a foto inline lette anche da bytes, non solo da file locali;
+- configurazione pronta per Google Drive e Google Sheets.
+
+La V1 continua comunque a usare il backend locale come default.
+
 ### Fuori scope V1
 
 Per ora non sono inclusi:
@@ -111,7 +121,8 @@ I moduli canonici stanno nelle cartelle `bootstrap`, `application`, `domain` e `
 ### Flusso applicativo
 
 1. Caricamento configurazione da `.env`
-2. Lettura dati locali
+2. Selezione del backend di storage
+3. Lettura dati dal provider configurato
 3. Selezione casuale dei contenuti
 4. Composizione del messaggio
 5. Costruzione della mail con allegato
@@ -184,6 +195,18 @@ BLASFEMIE_FILE=data/quotes/blasfemie.txt
 PHOTOS_DIR=data/photos
 
 DRY_RUN=true
+
+STORAGE_BACKEND=filesystem
+
+GOOGLE_CREDENTIALS_FILE=credentials.json
+GOOGLE_TOKEN_FILE=token.json
+GOOGLE_CONTACTS_SPREADSHEET_ID=
+GOOGLE_CONTENT_SPREADSHEET_ID=
+GOOGLE_CONTACTS_SHEET_NAME=Contacts
+GOOGLE_QUOTES_SHEET_NAME=Quotes
+GOOGLE_SAINTS_SHEET_NAME=Saints
+GOOGLE_BLASFEMIE_SHEET_NAME=Blasfemie
+GOOGLE_PHOTOS_FOLDER_ID=
 ```
 
 ### Significato delle variabili
@@ -200,6 +223,8 @@ DRY_RUN=true
 - `BLASFEMIE_FILE`: path del file delle blasfemie.
 - `PHOTOS_DIR`: cartella delle immagini.
 - `DRY_RUN`: se `true`, costruisce la mail ma non la invia.
+- `STORAGE_BACKEND`: backend storage attivo, `filesystem` o `google_workspace`.
+- `GOOGLE_*`: configurazione necessaria per la V2 con Drive e Sheets.
 
 ### Nota importante su Gmail
 

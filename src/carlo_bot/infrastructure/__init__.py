@@ -1,4 +1,1 @@
-from carlo_bot.infrastructure.config import AppConfig, load_config
-
-
-__all__ = ["AppConfig", "load_config"]
+# Infrastructure package: config, email, storage, and Google Workspace adapters

@@ -1,3 +1,4 @@
+# Entry point: imports and delegates execution to the CLI handler when run as a script
 from carlo_bot.bootstrap.cli import main
 
 

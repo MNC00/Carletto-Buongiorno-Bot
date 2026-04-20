@@ -5,10 +5,12 @@ from carlo_bot.infrastructure.config import AppConfig
 
 
 def get_project_root() -> Path:
+    # Resolves the project root by walking 3 parent directories up from this file's location
     return Path(__file__).resolve().parents[3]
 
 
 def build_paths(project_root: Path, config: AppConfig) -> tuple[Path, Path, Path, Path, Path]:
+    # Constructs absolute paths for all data files by joining project root with config-relative paths
     contacts_path = project_root / config.contacts_file
     quotes_path = project_root / config.quotes_file
     photos_path = project_root / config.photos_dir
@@ -18,6 +20,7 @@ def build_paths(project_root: Path, config: AppConfig) -> tuple[Path, Path, Path
 
 
 def resolve_dry_run(config: AppConfig, args: Namespace) -> bool:
+    # Determines dry_run mode: CLI flags (--send / --dry-run) take priority over .env DRY_RUN
     if args.send and args.dry_run:
         raise ValueError("Usa solo uno tra --send e --dry-run.")
 

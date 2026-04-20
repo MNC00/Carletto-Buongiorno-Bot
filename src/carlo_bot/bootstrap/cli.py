@@ -6,6 +6,7 @@ from carlo_bot.infrastructure.config import load_config
 
 
 def parse_args() -> argparse.Namespace:
+    # Defines CLI flags: --send forces real email delivery, --dry-run forces simulation only
     parser = argparse.ArgumentParser(description="Carlo Random Good Morning Bot")
     parser.add_argument(
         "--send",
@@ -21,6 +22,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    # Loads config from .env, parses CLI args, resolves dry_run mode, then runs the full workflow
     config = load_config()
     args = parse_args()
     dry_run = resolve_dry_run(config, args)
