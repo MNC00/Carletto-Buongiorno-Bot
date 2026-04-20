@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Francesco",
+    "email": "francescomancini07@gmail.com",
+    "active": true
+  },
+  {
+    "name": "Simone",
+    "email": "simonsh.bas@gmail.com",
+    "active": true
+  },
+  {
+    "name": "Martina",
+    "email": "martinapietrantoni.mp@gmail.com",
+    "active": true
+  },
+  {
+    "name": "alice",
+    "email": "alicechiarini0@gmail.com",
+    "active": true
+  },
+  {
+    "name": "emanuele",
+    "email": "emadec2000@gmail.com",
+    "active": true
+  },
+  {
+    "name": "carlo",
+    "email": "brunicarlo7@gmail.com",
+    "active": true
+  },
+  {
+    "name": "pave",
+    "email": "dave.radici@gmail.com",
+    "active": true
+  }
+]

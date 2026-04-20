@@ -1,0 +1,55 @@
+San Gennaro
+San Pietro
+San Paolo
+San Giovanni
+San Giacomo
+Sant'Andrea
+San Tommaso
+San Filippo
+San Bartolomeo
+San Matteo
+San Luca
+San Marco
+Santo Stefano
+San Lorenzo
+San Francesco d'Assisi
+Santa Chiara
+San Benedetto
+Santa Scolastica
+San Agostino
+San Girolamo
+Sant'Ambrogio
+San Gregorio Magno
+San Tommaso d'Aquino
+Santa Caterina da Siena
+Santa Teresa d'Avila
+San Giovanni della Croce
+Sant'Ignazio di Loyola
+San Domenico
+San Antonio da Padova
+Santa Giovanna d'Arco
+San Patrizio
+San Nicola
+San Valentino
+San Sebastiano
+San Rocco
+San Michele Arcangelo
+San Gabriele Arcangelo
+San Raffaele Arcangelo
+Santa Lucia
+Santa Agnese
+Santa Rita da Cascia
+San Pio da Pietrelcina
+San Giuseppe
+Santa Maria Maddalena
+Santa Marta
+San Lazzaro
+San Barnaba
+San Timoteo
+San Tito
+San Silvestro
+San Leone Magno
+Dio 
+Madonna
+Gesù
+Cristo
