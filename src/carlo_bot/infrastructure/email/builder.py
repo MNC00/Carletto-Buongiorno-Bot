@@ -23,7 +23,8 @@ def _build_inline_message(
     message = EmailMessage()
     message["Subject"] = subject
     message["From"] = sender
-    message["To"] = ", ".join(recipients)
+    # Use BCC instead of TO to hide recipient addresses
+    message["Bcc"] = ", ".join(recipients)
 
     message.set_content(plain_body)
     message.add_alternative(html_body, subtype="html")
