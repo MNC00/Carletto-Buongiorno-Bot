@@ -5,7 +5,7 @@ from carlo_bot.bootstrap.cli import main
 
 if __name__ == "__main__":
     # Ritardo casuale tra 0 e 120 minuti (7200 secondi)
-    delay = random.randint(0, 7200)
+    delay = random.randint(3600)
     print(f"Ritardo casuale: {delay // 60} minuti")
     time.sleep(delay)
 
