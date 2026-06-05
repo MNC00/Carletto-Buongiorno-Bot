@@ -258,3 +258,85 @@ def test_run_workflow_no_birthday_no_birthday_section(monkeypatch):
     run_workflow(config=config, dry_run=False)
 
     assert "\U0001F382" not in built_messages[0]
+
+
+def test_run_workflow_uses_rewritten_closing_when_enabled(monkeypatch):
+    config = SimpleNamespace(
+        app_env="test",
+        smtp_sender="bot@example.com",
+        unsubscribe_base_url=None,
+        unsubscribe_secret=None,
+        gemini_api_key="fake-key",
+        llm_prompt_file="apps/buongiorno-bot/data/prompts/system_prompt.txt",
+        birthday_prompt_file="apps/buongiorno-bot/data/prompts/birthday_prompt.txt",
+        closing_rewrite_enabled=True,
+        closing_rewrite_prompt_file="apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
+    )
+    built_messages: list[str] = []
+
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.build_storage_provider",
+        lambda config, project_root: FakeStorageProvider(),
+    )
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.generate_message_body",
+        lambda **kwargs: "Corpo AI breve.",
+    )
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.rewrite_email_closing",
+        lambda **kwargs: "Chiudila bene e senza drammi.\nSan Gennaro culone remix",
+    )
+
+    def fake_build_email_message(*, sender, recipients, subject, plain_body, html_body, image_asset):
+        built_messages.append(plain_body)
+        return {"sender": sender, "recipients": recipients, "subject": subject}
+
+    monkeypatch.setattr("carlo_bot.application.workflow.build_email_message", fake_build_email_message)
+    monkeypatch.setattr("carlo_bot.application.workflow.send_email", lambda config, message: None)
+
+    run_workflow(config=config, dry_run=True)
+
+    assert "Chiudila bene e senza drammi." in built_messages[0]
+    assert "San Gennaro culone remix" in built_messages[0]
+    assert "Passa una buona giornata," not in built_messages[0]
+
+
+def test_run_workflow_falls_back_to_default_closing_when_rewrite_fails(monkeypatch):
+    config = SimpleNamespace(
+        app_env="test",
+        smtp_sender="bot@example.com",
+        unsubscribe_base_url=None,
+        unsubscribe_secret=None,
+        gemini_api_key="fake-key",
+        llm_prompt_file="apps/buongiorno-bot/data/prompts/system_prompt.txt",
+        birthday_prompt_file="apps/buongiorno-bot/data/prompts/birthday_prompt.txt",
+        closing_rewrite_enabled=True,
+        closing_rewrite_prompt_file="apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
+    )
+    built_messages: list[str] = []
+
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.build_storage_provider",
+        lambda config, project_root: FakeStorageProvider(),
+    )
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.generate_message_body",
+        lambda **kwargs: "Corpo AI breve.",
+    )
+
+    def failing_rewrite(**kwargs):
+        raise RuntimeError("rewrite failed")
+
+    monkeypatch.setattr("carlo_bot.application.workflow.rewrite_email_closing", failing_rewrite)
+
+    def fake_build_email_message(*, sender, recipients, subject, plain_body, html_body, image_asset):
+        built_messages.append(plain_body)
+        return {"sender": sender, "recipients": recipients, "subject": subject}
+
+    monkeypatch.setattr("carlo_bot.application.workflow.build_email_message", fake_build_email_message)
+    monkeypatch.setattr("carlo_bot.application.workflow.send_email", lambda config, message: None)
+
+    run_workflow(config=config, dry_run=True)
+
+    assert "Passa una buona giornata," in built_messages[0]
+    assert "San gennaro culone" in built_messages[0]

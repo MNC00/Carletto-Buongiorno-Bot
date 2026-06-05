@@ -8,7 +8,11 @@ from carlo_bot.domain.composer import (
     build_subject,
 )
 from carlo_bot.bootstrap.runtime import get_project_root
-from carlo_bot.infrastructure.llm import generate_birthday_message, generate_message_body
+from carlo_bot.infrastructure.llm import (
+    generate_birthday_message,
+    generate_message_body,
+    rewrite_email_closing,
+)
 from carlo_bot.domain.picker import (
     pick_active_contacts,
     pick_birthday_contacts,
@@ -88,6 +92,31 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
     else:
         print("GEMINI_API_KEY not set, using static template")
 
+    # Optionally rewrites the final closing with LLM, with fallback to the original closing on failure
+    rewritten_closing: str | None = None
+    closing_rewrite_enabled = getattr(config, "closing_rewrite_enabled", False)
+    closing_rewrite_prompt_file = getattr(
+        config,
+        "closing_rewrite_prompt_file",
+        "apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
+    )
+    if config.gemini_api_key and closing_rewrite_enabled:
+        try:
+            rewrite_prompt_path = get_project_root() / closing_rewrite_prompt_file
+            rewritten_closing_candidate = rewrite_email_closing(
+                saint=selected_saint,
+                blasfemia=selected_blasfemia,
+                api_key=config.gemini_api_key,
+                system_prompt_file=rewrite_prompt_path,
+            )
+            if rewritten_closing_candidate.strip():
+                rewritten_closing = rewritten_closing_candidate.strip()
+                print(f"LLM closing rewritten ({len(rewritten_closing)} chars)")
+            else:
+                print("LLM closing rewrite returned empty output, using default closing")
+        except Exception as exc:  # noqa: BLE001
+            print(f"LLM closing rewrite failed, using default closing: {exc}")
+
     # Detects birthday contacts among active contacts
     birthday_contacts = pick_birthday_contacts(active_contacts)
     birthday_emails = {c["email"] for c in birthday_contacts}
@@ -139,6 +168,7 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 unsubscribe_url=unsubscribe_url,
                 nickname=nickname,
                 birthday_section=birthday_section,
+                closing_override=rewritten_closing,
             )
             html_body = build_html_body_ai(
                 ai_generated_body,
@@ -148,6 +178,7 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 unsubscribe_url=unsubscribe_url,
                 nickname=nickname,
                 birthday_section=birthday_section,
+                closing_override=rewritten_closing,
             )
         else:
             plain_body = build_plain_body(
@@ -158,6 +189,7 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 unsubscribe_url=unsubscribe_url,
                 nickname=nickname,
                 birthday_section=birthday_section,
+                closing_override=rewritten_closing,
             )
             html_body = build_html_body(
                 selected_quote,
@@ -167,6 +199,7 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 unsubscribe_url=unsubscribe_url,
                 nickname=nickname,
                 birthday_section=birthday_section,
+                closing_override=rewritten_closing,
             )
         message = build_email_message(
             sender=config.smtp_sender,

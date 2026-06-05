@@ -55,6 +55,8 @@ def test_filesystem_storage_provider_loads_all_sources(tmp_path: Path):
         gemini_api_key=None,
         llm_prompt_file="",
         birthday_prompt_file="",
+        closing_rewrite_enabled=False,
+        closing_rewrite_prompt_file="",
     )
 
     provider = FileSystemStorageProvider(config=config, project_root=tmp_path)

@@ -67,6 +67,13 @@ def _build_html_unsubscribe_footer(unsubscribe_url: str | None) -> str:
     )
 
 
+def _build_closing_text(saint: str, blasfemia: str, closing_override: str | None) -> str:
+    if closing_override and closing_override.strip():
+        return closing_override.strip()
+
+    return f"Passa una buona giornata,\n{saint.capitalize()} {blasfemia}"
+
+
 def build_plain_body(
     quote: str,
     saint: str,
@@ -75,18 +82,19 @@ def build_plain_body(
     unsubscribe_url: str | None = None,
     nickname: str | None = None,
     birthday_section: str | None = None,
+    closing_override: str | None = None,
 ) -> str:
     # Assembles the plain-text email body by combining quote, saint name, and blasfemia into a template
     _validate_quote(quote)
     greeting = _build_greeting(recipient_name, nickname=nickname)
     bday = _build_birthday_section(birthday_section) if birthday_section else ""
+    closing = _build_closing_text(saint, blasfemia, closing_override)
 
     return (
         f"{greeting}\n\n"
         f"{bday}"
         f'Tieni ben a mente che:\n"{quote}"\n\n'
-        "Passa una buona giornata,\n"
-        f"{saint.capitalize()} {blasfemia}\n\n"
+        f"{closing}\n\n"
         "Carlo"
         f"{_build_plain_unsubscribe_footer(unsubscribe_url)}"
     )
@@ -100,19 +108,20 @@ def build_plain_body_ai(
     unsubscribe_url: str | None = None,
     nickname: str | None = None,
     birthday_section: str | None = None,
+    closing_override: str | None = None,
 ) -> str:
     # Assembles the plain-text email body using an AI-generated body instead of the static template
     if not generated_body or not generated_body.strip():
         raise ValueError("generated_body cannot be empty.")
     greeting = _build_greeting(recipient_name, nickname=nickname)
     bday = _build_birthday_section(birthday_section) if birthday_section else ""
+    closing = _build_closing_text(saint, blasfemia, closing_override)
 
     return (
         f"{greeting}\n\n"
         f"{bday}"
         f"{generated_body.strip()}\n\n"
-        "Passa una buona giornata,\n"
-        f"{saint.capitalize()} {blasfemia}\n\n"
+        f"{closing}\n\n"
         "Carlo"
         f"{_build_plain_unsubscribe_footer(unsubscribe_url)}"
     )
@@ -126,14 +135,23 @@ def build_html_body(
     unsubscribe_url: str | None = None,
     nickname: str | None = None,
     birthday_section: str | None = None,
+    closing_override: str | None = None,
 ) -> str:
     # Assembles the HTML email body; HTML-escapes all dynamic content to prevent injection
     _validate_quote(quote)
 
     greeting = escape(_build_greeting(recipient_name, nickname=nickname))
     safe_quote = escape(quote.strip())
-    safe_saint = escape(saint.strip().capitalize())
-    safe_blasfemia = escape(blasfemia.strip())
+    if closing_override and closing_override.strip():
+        safe_closing_html = escape(closing_override.strip()).replace("\n", "<br>")
+        closing_html_block = f"<strong>{safe_closing_html}</strong>"
+    else:
+        safe_saint = escape(saint.strip().capitalize())
+        safe_blasfemia = escape(blasfemia.strip())
+        closing_html_block = (
+            "Passa una buona giornata,<br>\n"
+            f"          <strong>{safe_saint.capitalize()} {safe_blasfemia}</strong>"
+        )
     bday_html = _build_html_birthday_section(birthday_section) if birthday_section else ""
 
     # References the inline photo via the Content-ID "carlo_photo" set by the email builder
@@ -146,8 +164,7 @@ def build_html_body(
           <img src=\"cid:carlo_photo\" alt=\"Foto di Carlo\" style=\"max-width: 300px; height: auto;\">
         </p>
         <p>
-          Passa una buona giornata,<br>
-          <strong>{safe_saint.capitalize()} {safe_blasfemia}</strong>
+                    {closing_html_block}
         </p>
         <p>Carlo</p>
         {_build_html_unsubscribe_footer(unsubscribe_url)}
@@ -164,6 +181,7 @@ def build_html_body_ai(
     unsubscribe_url: str | None = None,
     nickname: str | None = None,
     birthday_section: str | None = None,
+    closing_override: str | None = None,
 ) -> str:
     # Assembles the HTML email body using an AI-generated body; HTML-escapes all dynamic content
     if not generated_body or not generated_body.strip():
@@ -171,8 +189,16 @@ def build_html_body_ai(
 
     greeting = escape(_build_greeting(recipient_name, nickname=nickname))
     safe_body = escape(generated_body.strip())
-    safe_saint = escape(saint.strip().capitalize())
-    safe_blasfemia = escape(blasfemia.strip())
+    if closing_override and closing_override.strip():
+        safe_closing_html = escape(closing_override.strip()).replace("\n", "<br>")
+        closing_html_block = f"<strong>{safe_closing_html}</strong>"
+    else:
+        safe_saint = escape(saint.strip().capitalize())
+        safe_blasfemia = escape(blasfemia.strip())
+        closing_html_block = (
+            "Passa una buona giornata,<br>\n"
+            f"          <strong>{safe_saint.capitalize()} {safe_blasfemia}</strong>"
+        )
     bday_html = _build_html_birthday_section(birthday_section) if birthday_section else ""
 
     # Converts newlines in the AI body to <br> so paragraph breaks survive in HTML
@@ -187,8 +213,7 @@ def build_html_body_ai(
           <img src="cid:carlo_photo" alt="Foto di Carlo" style="max-width: 300px; height: auto;">
         </p>
         <p>
-          Passa una buona giornata,<br>
-          <strong>{safe_saint.capitalize()} {safe_blasfemia}</strong>
+                    {closing_html_block}
         </p>
         <p>Carlo</p>
         {_build_html_unsubscribe_footer(unsubscribe_url)}

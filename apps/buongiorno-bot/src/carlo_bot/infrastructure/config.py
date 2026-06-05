@@ -34,6 +34,8 @@ class AppConfig:
     gemini_api_key: str | None
     llm_prompt_file: str
     birthday_prompt_file: str
+    closing_rewrite_enabled: bool
+    closing_rewrite_prompt_file: str
 
 
 def _parse_bool(value: str) -> bool:
@@ -81,6 +83,11 @@ def load_config() -> AppConfig:
     gemini_api_key = _empty_to_none(os.getenv("GEMINI_API_KEY"))
     llm_prompt_file = os.getenv("LLM_PROMPT_FILE", "apps/buongiorno-bot/data/prompts/system_prompt.txt")
     birthday_prompt_file = os.getenv("BIRTHDAY_PROMPT_FILE", "apps/buongiorno-bot/data/prompts/birthday_prompt.txt")
+    closing_rewrite_enabled_raw = os.getenv("CLOSING_REWRITE_ENABLED", "false")
+    closing_rewrite_prompt_file = os.getenv(
+        "CLOSING_REWRITE_PROMPT_FILE",
+        "apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
+    )
 
     # Validates that all required SMTP fields are present
     if not smtp_host:
@@ -135,6 +142,8 @@ def load_config() -> AppConfig:
         gemini_api_key=gemini_api_key,
         llm_prompt_file=llm_prompt_file,
         birthday_prompt_file=birthday_prompt_file,
+        closing_rewrite_enabled=_parse_bool(closing_rewrite_enabled_raw),
+        closing_rewrite_prompt_file=closing_rewrite_prompt_file,
     )
 
 

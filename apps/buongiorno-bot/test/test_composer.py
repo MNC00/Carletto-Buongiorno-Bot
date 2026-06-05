@@ -157,3 +157,30 @@ def test_build_birthday_fallback_public():
     result = build_birthday_fallback_public("Mario Rossi")
 
     assert "Mario Rossi" in result
+
+
+def test_build_plain_body_uses_custom_closing_override():
+    result = build_plain_body(
+        "Oggi spacchi tutto.",
+        "San Gennaro",
+        "culone",
+        recipient_name="Alice",
+        closing_override="Vai tranquilla, oggi la sfanghi pure tu.\nSan Gennaro culone deluxe",
+    )
+
+    assert "Vai tranquilla, oggi la sfanghi pure tu." in result
+    assert "San Gennaro culone deluxe" in result
+    assert "Passa una buona giornata," not in result
+
+
+def test_build_html_body_escapes_custom_closing_override():
+    result = build_html_body(
+        "Oggi spacchi tutto.",
+        "San Gennaro",
+        "culone",
+        recipient_name="Alice",
+        closing_override="Occhio <script>alert('xss')</script>\nSan Gennaro culone",
+    )
+
+    assert "<script>" not in result
+    assert "&lt;script&gt;" in result
