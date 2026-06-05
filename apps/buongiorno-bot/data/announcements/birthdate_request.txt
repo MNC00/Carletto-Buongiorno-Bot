@@ -1,0 +1,17 @@
+Carlo sta aggiornando la lista dei compleanni e ha bisogno di due informazioni da te.
+
+Rispondi direttamente a questa mail copiando e compilando queste due righe:
+
+DATA_NASCITA=gg/mm/aaaa
+AUGURI=tutti
+
+Per AUGURI scegli uno di questi valori:
+- tutti: il giorno del tuo compleanno il messaggio di auguri personalizzato per te arriverà a tutti gli iscritti
+- solo_io: il giorno del tuo compleanno gli auguri arrivano solo a te
+
+Esempio:
+DATA_NASCITA = 11/09/2001
+AUGURI=tutti
+
+Grazie,
+Carlo
