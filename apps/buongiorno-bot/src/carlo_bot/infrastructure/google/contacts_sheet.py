@@ -28,8 +28,12 @@ class GoogleContactsSheet:
             contacts.append(
                 {
                     "name": record.get("nome", "").strip(),
+                    "cognome": record.get("cognome", "").strip(),
                     "email": record.get("e-mail", "").strip(),
                     "active": _parse_bool(record.get("active", "true")),
+                    "nickname": record.get("nickname", "").strip() or None,
+                    "data_di_nascita": _parse_date(record.get("data di nascita", "")),
+                    "birthday_public": _parse_bool(record.get("birthday_public", "true")),
                 }
             )
 
@@ -48,3 +52,19 @@ def _row_to_record(headers: list[str], row: list[str]) -> dict[str, str]:
 def _parse_bool(value: str) -> bool:
     # Treats anything that is not an explicit false-ish string as True
     return value.strip().lower() not in {"false", "0", "no", "n"}
+
+
+def _parse_date(value: str) -> tuple[int, int] | None:
+    # Parses a date string and returns (month, day) for birthday matching; returns None on failure
+    stripped = value.strip()
+    if not stripped:
+        return None
+    from datetime import datetime
+
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+        try:
+            dt = datetime.strptime(stripped, fmt)
+            return (dt.month, dt.day)
+        except ValueError:
+            continue
+    return None

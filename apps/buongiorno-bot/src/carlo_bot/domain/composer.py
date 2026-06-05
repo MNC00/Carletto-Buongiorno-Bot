@@ -12,15 +12,34 @@ def _validate_quote(quote: str) -> None:
         raise ValueError("Quote cannot be empty.")
 
 
-def _build_greeting(recipient_name: str | None) -> str:
-    if recipient_name is None:
+def _build_greeting(recipient_name: str | None, nickname: str | None = None) -> str:
+    display_name = nickname or (recipient_name.strip() if recipient_name else None)
+
+    if not display_name or not display_name.strip():
         return "Buongiorno!"
 
-    normalized_name = recipient_name.strip()
-    if not normalized_name:
-        return "Buongiorno!"
+    return f"Buongiorno {display_name.strip()}!"
 
-    return f"Buongiorno {normalized_name}!"
+
+def build_birthday_fallback_private(name: str) -> str:
+    return f"Oggi è il tuo giorno, {name}! Tanti auguri, anche se non te li meriti!"
+
+
+def build_birthday_fallback_public(full_name: str) -> str:
+    return f"Oggi festeggiamo {full_name}! Tanti auguri!"
+
+
+def _build_birthday_section(birthday_text: str) -> str:
+    if not birthday_text:
+        return ""
+    return f"\U0001F382 {birthday_text.strip()}\n\n"
+
+
+def _build_html_birthday_section(birthday_text: str) -> str:
+    if not birthday_text:
+        return ""
+    safe_text = escape(birthday_text.strip()).replace("\n", "<br>")
+    return f'        <p>\U0001F382 {safe_text}</p>\n'
 
 
 def _build_plain_unsubscribe_footer(unsubscribe_url: str | None) -> str:
@@ -54,13 +73,17 @@ def build_plain_body(
     blasfemia: str,
     recipient_name: str | None = None,
     unsubscribe_url: str | None = None,
+    nickname: str | None = None,
+    birthday_section: str | None = None,
 ) -> str:
     # Assembles the plain-text email body by combining quote, saint name, and blasfemia into a template
     _validate_quote(quote)
-    greeting = _build_greeting(recipient_name)
+    greeting = _build_greeting(recipient_name, nickname=nickname)
+    bday = _build_birthday_section(birthday_section) if birthday_section else ""
 
     return (
         f"{greeting}\n\n"
+        f"{bday}"
         f'Tieni ben a mente che:\n"{quote}"\n\n'
         "Passa una buona giornata,\n"
         f"{saint.capitalize()} {blasfemia}\n\n"
@@ -75,14 +98,18 @@ def build_plain_body_ai(
     blasfemia: str,
     recipient_name: str | None = None,
     unsubscribe_url: str | None = None,
+    nickname: str | None = None,
+    birthday_section: str | None = None,
 ) -> str:
     # Assembles the plain-text email body using an AI-generated body instead of the static template
     if not generated_body or not generated_body.strip():
         raise ValueError("generated_body cannot be empty.")
-    greeting = _build_greeting(recipient_name)
+    greeting = _build_greeting(recipient_name, nickname=nickname)
+    bday = _build_birthday_section(birthday_section) if birthday_section else ""
 
     return (
         f"{greeting}\n\n"
+        f"{bday}"
         f"{generated_body.strip()}\n\n"
         "Passa una buona giornata,\n"
         f"{saint.capitalize()} {blasfemia}\n\n"
@@ -97,21 +124,24 @@ def build_html_body(
     blasfemia: str,
     recipient_name: str | None = None,
     unsubscribe_url: str | None = None,
+    nickname: str | None = None,
+    birthday_section: str | None = None,
 ) -> str:
     # Assembles the HTML email body; HTML-escapes all dynamic content to prevent injection
     _validate_quote(quote)
 
-    greeting = escape(_build_greeting(recipient_name))
+    greeting = escape(_build_greeting(recipient_name, nickname=nickname))
     safe_quote = escape(quote.strip())
     safe_saint = escape(saint.strip().capitalize())
     safe_blasfemia = escape(blasfemia.strip())
+    bday_html = _build_html_birthday_section(birthday_section) if birthday_section else ""
 
     # References the inline photo via the Content-ID "carlo_photo" set by the email builder
     return f"""
     <html>
       <body>
         <p>{greeting}</p>
-        <p>Tieni ben a mente che:<br><strong>\"{safe_quote}\"</strong></p>
+{bday_html}        <p>Tieni ben a mente che:<br><strong>\"{safe_quote}\"</strong></p>
         <p>
           <img src=\"cid:carlo_photo\" alt=\"Foto di Carlo\" style=\"max-width: 300px; height: auto;\">
         </p>
@@ -132,15 +162,18 @@ def build_html_body_ai(
     blasfemia: str,
     recipient_name: str | None = None,
     unsubscribe_url: str | None = None,
+    nickname: str | None = None,
+    birthday_section: str | None = None,
 ) -> str:
     # Assembles the HTML email body using an AI-generated body; HTML-escapes all dynamic content
     if not generated_body or not generated_body.strip():
         raise ValueError("generated_body cannot be empty.")
 
-    greeting = escape(_build_greeting(recipient_name))
+    greeting = escape(_build_greeting(recipient_name, nickname=nickname))
     safe_body = escape(generated_body.strip())
     safe_saint = escape(saint.strip().capitalize())
     safe_blasfemia = escape(blasfemia.strip())
+    bday_html = _build_html_birthday_section(birthday_section) if birthday_section else ""
 
     # Converts newlines in the AI body to <br> so paragraph breaks survive in HTML
     safe_body_html = safe_body.replace("\n", "<br>")
@@ -149,7 +182,7 @@ def build_html_body_ai(
     <html>
       <body>
         <p>{greeting}</p>
-        <p>{safe_body_html}</p>
+{bday_html}        <p>{safe_body_html}</p>
         <p>
           <img src="cid:carlo_photo" alt="Foto di Carlo" style="max-width: 300px; height: auto;">
         </p>

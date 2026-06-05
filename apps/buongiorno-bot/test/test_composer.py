@@ -1,6 +1,12 @@
 import pytest
 
-from carlo_bot.domain.composer import build_html_body, build_plain_body, build_subject
+from carlo_bot.domain.composer import (
+    build_birthday_fallback_private,
+    build_birthday_fallback_public,
+    build_html_body,
+    build_plain_body,
+    build_subject,
+)
 
 
 def test_build_subject_returns_expected_subject():
@@ -63,3 +69,90 @@ def test_build_plain_body_falls_back_to_generic_greeting_for_blank_name():
     result = build_plain_body("Oggi spacchi tutto.", "San Gennaro", "culone", recipient_name="   ")
 
     assert result.startswith("Buongiorno!")
+
+
+# --- Nickname tests ---
+
+
+def test_build_plain_body_uses_nickname_when_provided():
+    result = build_plain_body("Oggi spacchi tutto.", "San Gennaro", "culone", recipient_name="Alice", nickname="Alicetta")
+
+    assert result.startswith("Buongiorno Alicetta!")
+
+
+def test_build_html_body_uses_nickname_when_provided():
+    result = build_html_body("Oggi spacchi tutto.", "San Gennaro", "culone", recipient_name="Alice", nickname="Alicetta")
+
+    assert "<p>Buongiorno Alicetta!</p>" in result
+
+
+def test_build_plain_body_falls_back_to_name_when_nickname_is_none():
+    result = build_plain_body("Oggi spacchi tutto.", "San Gennaro", "culone", recipient_name="Alice", nickname=None)
+
+    assert result.startswith("Buongiorno Alice!")
+
+
+def test_build_plain_body_falls_back_to_name_when_nickname_is_empty():
+    result = build_plain_body("Oggi spacchi tutto.", "San Gennaro", "culone", recipient_name="Alice", nickname="")
+
+    assert result.startswith("Buongiorno Alice!")
+
+
+def test_build_plain_body_generic_greeting_when_both_nickname_and_name_empty():
+    result = build_plain_body("Oggi spacchi tutto.", "San Gennaro", "culone", recipient_name="", nickname="")
+
+    assert result.startswith("Buongiorno!")
+
+
+# --- Birthday section tests ---
+
+
+def test_build_plain_body_includes_birthday_section_when_provided():
+    result = build_plain_body(
+        "Oggi spacchi tutto.", "San Gennaro", "culone",
+        recipient_name="Alice",
+        birthday_section="Auguri vecchia!",
+    )
+
+    assert "Buongiorno Alice!" in result
+    assert "\U0001F382 Auguri vecchia!" in result
+    assert result.index("\U0001F382") < result.index("Tieni ben a mente che")
+
+
+def test_build_html_body_includes_birthday_section_when_provided():
+    result = build_html_body(
+        "Oggi spacchi tutto.", "San Gennaro", "culone",
+        recipient_name="Alice",
+        birthday_section="Auguri vecchia!",
+    )
+
+    assert "\U0001F382 Auguri vecchia!" in result
+
+
+def test_build_plain_body_no_birthday_section_when_none():
+    result = build_plain_body("Oggi spacchi tutto.", "San Gennaro", "culone", recipient_name="Alice")
+
+    assert "\U0001F382" not in result
+
+
+def test_build_html_body_escapes_birthday_section():
+    result = build_html_body(
+        "Oggi spacchi tutto.", "San Gennaro", "culone",
+        recipient_name="Alice",
+        birthday_section="Auguri <script>alert('xss')</script>",
+    )
+
+    assert "<script>" not in result
+    assert "&lt;script&gt;" in result
+
+
+def test_build_birthday_fallback_private():
+    result = build_birthday_fallback_private("Mario")
+
+    assert "Mario" in result
+
+
+def test_build_birthday_fallback_public():
+    result = build_birthday_fallback_public("Mario Rossi")
+
+    assert "Mario Rossi" in result

@@ -1,8 +1,10 @@
+from datetime import date
 from pathlib import Path
 import pytest
 
 from carlo_bot.domain.picker import (
     pick_active_contacts,
+    pick_birthday_contacts,
     pick_random_photo,
     pick_random_quote,
 )
@@ -71,3 +73,65 @@ def test_pick_random_quote_can_be_made_predictable(monkeypatch):
     result = pick_random_quote(quotes)
 
     assert result == "q1"
+
+
+def test_pick_birthday_contacts_returns_contacts_with_birthday_today():
+    today = date(2026, 6, 5)
+    contacts = [
+        {"name": "Mario", "email": "mario@example.com", "active": True, "data_di_nascita": (6, 5)},
+        {"name": "Giulia", "email": "giulia@example.com", "active": True, "data_di_nascita": (6, 6)},
+        {"name": "Luca", "email": "luca@example.com", "active": True, "data_di_nascita": (6, 5)},
+    ]
+
+    result = pick_birthday_contacts(contacts, today=today)
+
+    assert len(result) == 2
+    assert result[0]["name"] == "Mario"
+    assert result[1]["name"] == "Luca"
+
+
+def test_pick_birthday_contacts_excludes_contacts_without_date():
+    today = date(2026, 6, 5)
+    contacts = [
+        {"name": "Mario", "email": "mario@example.com", "active": True, "data_di_nascita": None},
+        {"name": "Giulia", "email": "giulia@example.com", "active": True},
+    ]
+
+    result = pick_birthday_contacts(contacts, today=today)
+
+    assert result == []
+
+
+def test_pick_birthday_contacts_excludes_wrong_day():
+    today = date(2026, 6, 5)
+    contacts = [
+        {"name": "Mario", "email": "mario@example.com", "active": True, "data_di_nascita": (6, 6)},
+    ]
+
+    result = pick_birthday_contacts(contacts, today=today)
+
+    assert result == []
+
+
+def test_pick_birthday_contacts_handles_leap_year_feb_29():
+    today = date(2024, 2, 29)
+    contacts = [
+        {"name": "Mario", "email": "mario@example.com", "active": True, "data_di_nascita": (2, 29)},
+        {"name": "Giulia", "email": "giulia@example.com", "active": True, "data_di_nascita": (2, 28)},
+    ]
+
+    result = pick_birthday_contacts(contacts, today=today)
+
+    assert len(result) == 1
+    assert result[0]["name"] == "Mario"
+
+
+def test_pick_birthday_contacts_returns_empty_when_no_birthdays():
+    today = date(2026, 1, 1)
+    contacts = [
+        {"name": "Mario", "email": "mario@example.com", "active": True, "data_di_nascita": (6, 5)},
+    ]
+
+    result = pick_birthday_contacts(contacts, today=today)
+
+    assert result == []

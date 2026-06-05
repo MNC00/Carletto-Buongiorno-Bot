@@ -1,8 +1,17 @@
-from carlo_bot.domain.composer import build_html_body, build_html_body_ai, build_plain_body, build_plain_body_ai, build_subject
+from carlo_bot.domain.composer import (
+    build_birthday_fallback_private,
+    build_birthday_fallback_public,
+    build_html_body,
+    build_html_body_ai,
+    build_plain_body,
+    build_plain_body_ai,
+    build_subject,
+)
 from carlo_bot.bootstrap.runtime import get_project_root
-from carlo_bot.infrastructure.llm import generate_message_body
+from carlo_bot.infrastructure.llm import generate_birthday_message, generate_message_body
 from carlo_bot.domain.picker import (
     pick_active_contacts,
+    pick_birthday_contacts,
     pick_random_blasfemia,
     pick_random_photo,
     pick_random_quote,
@@ -79,11 +88,46 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
     else:
         print("GEMINI_API_KEY not set, using static template")
 
+    # Detects birthday contacts among active contacts
+    birthday_contacts = pick_birthday_contacts(active_contacts)
+    birthday_emails = {c["email"] for c in birthday_contacts}
+    public_birthday_contacts = [c for c in birthday_contacts if c.get("birthday_public", True)]
+
+    if birthday_contacts:
+        print(f"Birthday contacts today: {[c.get('name') for c in birthday_contacts]}")
+
+    # Generates AI birthday messages per birthday contact; falls back to static on failure
+    birthday_ai_messages: dict[str, str] = {}
+    if birthday_contacts and config.gemini_api_key:
+        birthday_prompt_path = get_project_root() / config.birthday_prompt_file
+        for bday_contact in birthday_contacts:
+            bday_name = bday_contact.get("name", "")
+            try:
+                birthday_ai_messages[bday_contact["email"]] = generate_birthday_message(
+                    name=bday_name,
+                    api_key=config.gemini_api_key,
+                    system_prompt_file=birthday_prompt_path,
+                )
+                print(f"Birthday AI message generated for {bday_name}")
+            except Exception as exc:  # noqa: BLE001
+                print(f"Birthday AI generation failed for {bday_name}, using fallback: {exc}")
+
     # Builds one message per recipient so later steps can customize content safely per contact
     for contact in active_contacts:
         recipient = contact["email"]
         recipient_name = contact.get("name")
+        nickname = contact.get("nickname")
         unsubscribe_url = _build_recipient_unsubscribe_url(config, recipient)
+
+        # Determine birthday section for this contact
+        birthday_section = _build_contact_birthday_section(
+            contact=contact,
+            birthday_emails=birthday_emails,
+            birthday_contacts=birthday_contacts,
+            public_birthday_contacts=public_birthday_contacts,
+            birthday_ai_messages=birthday_ai_messages,
+        )
+
         if ai_generated_body:
             plain_body = build_plain_body_ai(
                 ai_generated_body,
@@ -91,6 +135,8 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 selected_blasfemia,
                 recipient_name=recipient_name,
                 unsubscribe_url=unsubscribe_url,
+                nickname=nickname,
+                birthday_section=birthday_section,
             )
             html_body = build_html_body_ai(
                 ai_generated_body,
@@ -98,6 +144,8 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 selected_blasfemia,
                 recipient_name=recipient_name,
                 unsubscribe_url=unsubscribe_url,
+                nickname=nickname,
+                birthday_section=birthday_section,
             )
         else:
             plain_body = build_plain_body(
@@ -106,6 +154,8 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 selected_blasfemia,
                 recipient_name=recipient_name,
                 unsubscribe_url=unsubscribe_url,
+                nickname=nickname,
+                birthday_section=birthday_section,
             )
             html_body = build_html_body(
                 selected_quote,
@@ -113,6 +163,8 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 selected_blasfemia,
                 recipient_name=recipient_name,
                 unsubscribe_url=unsubscribe_url,
+                nickname=nickname,
+                birthday_section=birthday_section,
             )
         message = build_email_message(
             sender=config.smtp_sender,
@@ -142,3 +194,40 @@ def _build_recipient_unsubscribe_url(config: AppConfig, recipient: str) -> str |
         return None
 
     return build_unsubscribe_url(config.unsubscribe_base_url, recipient, config.unsubscribe_secret)
+
+
+def _build_contact_birthday_section(
+    *,
+    contact: dict,
+    birthday_emails: set[str],
+    birthday_contacts: list[dict],
+    public_birthday_contacts: list[dict],
+    birthday_ai_messages: dict[str, str],
+) -> str | None:
+    if not birthday_contacts:
+        return None
+
+    recipient = contact["email"]
+    parts: list[str] = []
+
+    # If this contact is the birthday person, add private birthday greeting
+    if recipient in birthday_emails:
+        name = contact.get("name", "")
+        ai_msg = birthday_ai_messages.get(recipient)
+        parts.append(ai_msg if ai_msg else build_birthday_fallback_private(name))
+
+    # Add public birthday greetings for other birthday contacts (only those with birthday_public=True)
+    for bday_contact in public_birthday_contacts:
+        if bday_contact["email"] == recipient:
+            continue
+        full_name = f"{bday_contact.get('name', '')} {bday_contact.get('cognome', '')}".strip()
+        ai_msg = birthday_ai_messages.get(bday_contact["email"])
+        if ai_msg:
+            parts.append(f"Oggi festeggiamo {full_name}!\n{ai_msg}")
+        else:
+            parts.append(build_birthday_fallback_public(full_name))
+
+    if not parts:
+        return None
+
+    return "\n\n".join(parts)

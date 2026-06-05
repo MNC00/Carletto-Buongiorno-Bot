@@ -1,4 +1,5 @@
 import random
+from datetime import date
 from pathlib import Path
 
 
@@ -42,3 +43,15 @@ def pick_random_blasfemia(blasfemie: list[str]) -> str:
         raise ValueError("Blasfemie list is empty.")
 
     return random.choice(blasfemie)
+
+
+def pick_birthday_contacts(contacts: list[dict], today: date | None = None) -> list[dict]:
+    # Returns contacts whose data_di_nascita matches today's month and day
+    if today is None:
+        today = date.today()
+    birthday_contacts = []
+    for contact in contacts:
+        dob = contact.get("data_di_nascita")
+        if dob is not None and dob == (today.month, today.day):
+            birthday_contacts.append(contact)
+    return birthday_contacts
