@@ -115,8 +115,9 @@ def test_build_plain_body_includes_birthday_section_when_provided():
     )
 
     assert "Buongiorno Alice!" in result
-    assert "\U0001F382 Auguri vecchia!" in result
-    assert result.index("\U0001F382") < result.index("Tieni ben a mente che")
+    assert "Auguri vecchia!" in result
+    assert "\U0001F382" not in result
+    assert result.index("Auguri vecchia!") < result.index("Tieni ben a mente che")
 
 
 def test_build_html_body_includes_birthday_section_when_provided():

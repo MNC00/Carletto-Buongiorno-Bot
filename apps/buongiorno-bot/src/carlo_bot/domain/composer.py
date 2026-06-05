@@ -32,7 +32,7 @@ def build_birthday_fallback_public(full_name: str) -> str:
 def _build_birthday_section(birthday_text: str) -> str:
     if not birthday_text:
         return ""
-    return f"\U0001F382 {birthday_text.strip()}\n\n"
+    return f"{birthday_text.strip()}\n\n"
 
 
 def _build_html_birthday_section(birthday_text: str) -> str:

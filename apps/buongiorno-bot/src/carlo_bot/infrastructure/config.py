@@ -79,8 +79,8 @@ def load_config() -> AppConfig:
     unsubscribe_base_url = _empty_to_none(os.getenv("UNSUBSCRIBE_BASE_URL"))
     unsubscribe_secret = _empty_to_none(os.getenv("UNSUBSCRIBE_SECRET"))
     gemini_api_key = _empty_to_none(os.getenv("GEMINI_API_KEY"))
-    llm_prompt_file = os.getenv("LLM_PROMPT_FILE", "data/prompts/system_prompt.txt")
-    birthday_prompt_file = os.getenv("BIRTHDAY_PROMPT_FILE", "data/prompts/birthday_prompt.txt")
+    llm_prompt_file = os.getenv("LLM_PROMPT_FILE", "apps/buongiorno-bot/data/prompts/system_prompt.txt")
+    birthday_prompt_file = os.getenv("BIRTHDAY_PROMPT_FILE", "apps/buongiorno-bot/data/prompts/birthday_prompt.txt")
 
     # Validates that all required SMTP fields are present
     if not smtp_host:

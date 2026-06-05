@@ -113,6 +113,8 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 print(f"Birthday AI generation failed for {bday_name}, using fallback: {exc}")
 
     # Builds one message per recipient so later steps can customize content safely per contact
+    preview_body: str | None = None
+    preview_recipient: str | None = None
     for contact in active_contacts:
         recipient = contact["email"]
         recipient_name = contact.get("name")
@@ -177,12 +179,19 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
 
         if dry_run:
             print(f"Prepared email for: {recipient}")
+            if preview_body is None:
+                preview_body = plain_body
+                preview_recipient = recipient
             continue
 
         send_email(config, message)
         print(f"Email sent to: {recipient}")
 
     if dry_run:
+        if preview_body is not None:
+            print(f"\n=== Plain text body preview (to {preview_recipient}) ===")
+            print(preview_body)
+            print("=== End plain text body preview ===")
         print("\nDRY_RUN enabled: emails not sent.")
         return
 

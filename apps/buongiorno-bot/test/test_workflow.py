@@ -180,8 +180,8 @@ def test_run_workflow_birthday_private_only_birthday_contact_gets_greeting(monke
 
     alice_body = built_messages[0][1]
     bob_body = built_messages[1][1]
-    assert "\U0001F382" in alice_body
-    assert "\U0001F382" not in bob_body
+    assert "Oggi è il tuo giorno, Alice!" in alice_body
+    assert "Oggi è il tuo giorno" not in bob_body
 
 
 def test_run_workflow_birthday_public_all_contacts_see_greeting(monkeypatch):
@@ -223,8 +223,8 @@ def test_run_workflow_birthday_public_all_contacts_see_greeting(monkeypatch):
 
     alice_body = built_messages[0][1]
     bob_body = built_messages[1][1]
-    assert "\U0001F382" in alice_body
-    assert "\U0001F382" in bob_body
+    assert "Oggi è il tuo giorno, Alice!" in alice_body
+    assert "Oggi festeggiamo Alice Rossi!" in bob_body
     assert "Alice Rossi" in bob_body
 
 
