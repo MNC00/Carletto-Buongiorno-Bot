@@ -94,7 +94,7 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
 
     # Optionally rewrites the final closing with LLM, with fallback to the original closing on failure
     rewritten_closing: str | None = None
-    closing_rewrite_enabled = getattr(config, "closing_rewrite_enabled", False)
+    closing_rewrite_enabled = getattr(config, "closing_rewrite_enabled", True)
     closing_rewrite_prompt_file = getattr(
         config,
         "closing_rewrite_prompt_file",
