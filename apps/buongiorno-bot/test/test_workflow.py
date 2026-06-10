@@ -1,6 +1,8 @@
 from datetime import date
 from types import SimpleNamespace
 
+from google.genai.errors import ClientError, ServerError
+
 from carlo_bot.application.workflow import run_workflow
 from carlo_bot.infrastructure.storage.models import PhotoAsset
 
@@ -340,3 +342,224 @@ def test_run_workflow_falls_back_to_default_closing_when_rewrite_fails(monkeypat
 
     assert "Passa una buona giornata," in built_messages[0]
     assert "San gennaro culone" in built_messages[0]
+
+
+def _make_config_for_incipit_tests():
+    return SimpleNamespace(
+        app_env="test",
+        smtp_sender="bot@example.com",
+        unsubscribe_base_url=None,
+        unsubscribe_secret=None,
+        gemini_api_key="fake-key",
+        llm_prompt_file="apps/buongiorno-bot/data/prompts/system_prompt.txt",
+        birthday_prompt_file="apps/buongiorno-bot/data/prompts/birthday_prompt.txt",
+        closing_rewrite_enabled=False,
+    )
+
+
+def test_run_workflow_half_collab_body_ok_closing_fail_contains_reason(monkeypatch):
+    config = SimpleNamespace(
+        app_env="test",
+        smtp_sender="bot@example.com",
+        unsubscribe_base_url=None,
+        unsubscribe_secret=None,
+        gemini_api_key="fake-key",
+        llm_prompt_file="apps/buongiorno-bot/data/prompts/system_prompt.txt",
+        birthday_prompt_file="apps/buongiorno-bot/data/prompts/birthday_prompt.txt",
+        closing_rewrite_enabled=True,
+        closing_rewrite_prompt_file="apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
+    )
+    built_messages: list[str] = []
+
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.build_storage_provider",
+        lambda config, project_root: FakeStorageProvider(),
+    )
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.generate_message_body",
+        lambda **kwargs: "Corpo AI breve.",
+    )
+
+    def failing_closing(**kwargs):
+        raise ServerError(503, {"message": "overloaded"})
+
+    monkeypatch.setattr("carlo_bot.application.workflow.rewrite_email_closing", failing_closing)
+
+    def fake_build_email_message(*, sender, recipients, subject, plain_body, html_body, image_asset):
+        built_messages.append(plain_body)
+        return {"sender": sender, "recipients": recipients, "subject": subject}
+
+    monkeypatch.setattr("carlo_bot.application.workflow.build_email_message", fake_build_email_message)
+    monkeypatch.setattr("carlo_bot.application.workflow.send_email", lambda config, message: None)
+
+    run_workflow(config=config, dry_run=True)
+
+    assert "collaborato a meta" in built_messages[0]
+    assert "corpo me l'ha fatto" in built_messages[0]
+    assert "sovraccarico lato Google" in built_messages[0]
+    assert "Corpo AI breve." in built_messages[0]
+
+
+def test_run_workflow_half_collab_body_fail_closing_ok_contains_reason(monkeypatch):
+    config = SimpleNamespace(
+        app_env="test",
+        smtp_sender="bot@example.com",
+        unsubscribe_base_url=None,
+        unsubscribe_secret=None,
+        gemini_api_key="fake-key",
+        llm_prompt_file="apps/buongiorno-bot/data/prompts/system_prompt.txt",
+        birthday_prompt_file="apps/buongiorno-bot/data/prompts/birthday_prompt.txt",
+        closing_rewrite_enabled=True,
+        closing_rewrite_prompt_file="apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
+    )
+    built_messages: list[str] = []
+
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.build_storage_provider",
+        lambda config, project_root: FakeStorageProvider(),
+    )
+
+    def failing_body(**kwargs):
+        raise ServerError(503, {"message": "overloaded"})
+
+    monkeypatch.setattr("carlo_bot.application.workflow.generate_message_body", failing_body)
+    monkeypatch.setattr("carlo_bot.application.workflow.rewrite_email_closing", lambda **kwargs: "Closing AI ok")
+
+    def fake_build_email_message(*, sender, recipients, subject, plain_body, html_body, image_asset):
+        built_messages.append(plain_body)
+        return {"sender": sender, "recipients": recipients, "subject": subject}
+
+    monkeypatch.setattr("carlo_bot.application.workflow.build_email_message", fake_build_email_message)
+    monkeypatch.setattr("carlo_bot.application.workflow.send_email", lambda config, message: None)
+
+    run_workflow(config=config, dry_run=True)
+
+    assert "collaborato a meta" in built_messages[0]
+    assert "closing me l'ha fatto" in built_messages[0]
+    assert "sovraccarico lato Google" in built_messages[0]
+    assert "Tieni ben a mente che" in built_messages[0]
+
+
+def test_run_workflow_double_fail_same_reason_uses_single_reason_incipit(monkeypatch):
+    config = SimpleNamespace(
+        app_env="test",
+        smtp_sender="bot@example.com",
+        unsubscribe_base_url=None,
+        unsubscribe_secret=None,
+        gemini_api_key="fake-key",
+        llm_prompt_file="apps/buongiorno-bot/data/prompts/system_prompt.txt",
+        birthday_prompt_file="apps/buongiorno-bot/data/prompts/birthday_prompt.txt",
+        closing_rewrite_enabled=True,
+        closing_rewrite_prompt_file="apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
+    )
+    built_messages: list[str] = []
+
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.build_storage_provider",
+        lambda config, project_root: FakeStorageProvider(),
+    )
+
+    def failing_body(**kwargs):
+        raise ClientError(429, {"message": "billing account quota exceeded"})
+
+    def failing_closing(**kwargs):
+        raise ClientError(429, {"message": "billing exhausted"})
+
+    monkeypatch.setattr("carlo_bot.application.workflow.generate_message_body", failing_body)
+    monkeypatch.setattr("carlo_bot.application.workflow.rewrite_email_closing", failing_closing)
+
+    def fake_build_email_message(*, sender, recipients, subject, plain_body, html_body, image_asset):
+        built_messages.append(plain_body)
+        return {"sender": sender, "recipients": recipients, "subject": subject}
+
+    monkeypatch.setattr("carlo_bot.application.workflow.build_email_message", fake_build_email_message)
+    monkeypatch.setattr("carlo_bot.application.workflow.send_email", lambda config, message: None)
+
+    run_workflow(config=config, dry_run=True)
+
+    assert "Google mo vuole i sordi" in built_messages[0]
+    assert "collaborato a meta" not in built_messages[0]
+    assert "Tieni ben a mente che" in built_messages[0]
+
+
+def test_run_workflow_double_fail_different_reason_uses_single_mixed_incipit(monkeypatch):
+    config = SimpleNamespace(
+        app_env="test",
+        smtp_sender="bot@example.com",
+        unsubscribe_base_url=None,
+        unsubscribe_secret=None,
+        gemini_api_key="fake-key",
+        llm_prompt_file="apps/buongiorno-bot/data/prompts/system_prompt.txt",
+        birthday_prompt_file="apps/buongiorno-bot/data/prompts/birthday_prompt.txt",
+        closing_rewrite_enabled=True,
+        closing_rewrite_prompt_file="apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
+    )
+    built_messages: list[str] = []
+
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.build_storage_provider",
+        lambda config, project_root: FakeStorageProvider(),
+    )
+
+    def failing_body(**kwargs):
+        raise ClientError(429, {"message": "billing account exhausted"})
+
+    def failing_closing(**kwargs):
+        raise ServerError(503, {"message": "overloaded"})
+
+    monkeypatch.setattr("carlo_bot.application.workflow.generate_message_body", failing_body)
+    monkeypatch.setattr("carlo_bot.application.workflow.rewrite_email_closing", failing_closing)
+
+    def fake_build_email_message(*, sender, recipients, subject, plain_body, html_body, image_asset):
+        built_messages.append(plain_body)
+        return {"sender": sender, "recipients": recipients, "subject": subject}
+
+    monkeypatch.setattr("carlo_bot.application.workflow.build_email_message", fake_build_email_message)
+    monkeypatch.setattr("carlo_bot.application.workflow.send_email", lambda config, message: None)
+
+    run_workflow(config=config, dry_run=True)
+
+    assert "doppio pacco" in built_messages[0]
+    assert "problema de credito" in built_messages[0]
+    assert "sovraccarico lato Google" in built_messages[0]
+    assert "Tieni ben a mente che" in built_messages[0]
+
+
+def test_run_workflow_both_success_has_no_fallback_incipit(monkeypatch):
+    config = SimpleNamespace(
+        app_env="test",
+        smtp_sender="bot@example.com",
+        unsubscribe_base_url=None,
+        unsubscribe_secret=None,
+        gemini_api_key="fake-key",
+        llm_prompt_file="apps/buongiorno-bot/data/prompts/system_prompt.txt",
+        birthday_prompt_file="apps/buongiorno-bot/data/prompts/birthday_prompt.txt",
+        closing_rewrite_enabled=True,
+        closing_rewrite_prompt_file="apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
+    )
+    built_messages: list[str] = []
+
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.build_storage_provider",
+        lambda config, project_root: FakeStorageProvider(),
+    )
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.generate_message_body",
+        lambda **kwargs: "Corpo AI breve.",
+    )
+    monkeypatch.setattr(
+        "carlo_bot.application.workflow.rewrite_email_closing",
+        lambda **kwargs: "Closing AI ok",
+    )
+
+    def fake_build_email_message(*, sender, recipients, subject, plain_body, html_body, image_asset):
+        built_messages.append(plain_body)
+        return {"sender": sender, "recipients": recipients, "subject": subject}
+
+    monkeypatch.setattr("carlo_bot.application.workflow.build_email_message", fake_build_email_message)
+    monkeypatch.setattr("carlo_bot.application.workflow.send_email", lambda config, message: None)
+
+    run_workflow(config=config, dry_run=True)
+
+    assert "collaborato a meta" not in built_messages[0]
+    assert "doppio pacco" not in built_messages[0]

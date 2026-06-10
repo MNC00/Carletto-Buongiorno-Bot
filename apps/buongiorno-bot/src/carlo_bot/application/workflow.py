@@ -1,3 +1,5 @@
+from google.genai.errors import ClientError as GeminiClientError, ServerError as GeminiServerError
+
 from carlo_bot.domain.composer import (
     build_birthday_fallback_private,
     build_birthday_fallback_public,
@@ -7,6 +9,87 @@ from carlo_bot.domain.composer import (
     build_plain_body_ai,
     build_subject,
 )
+
+_LLM_OVERLOAD_INCIPIT = "Eh scusa, non oggi: a Google nun glie andava di collaborà."
+_LLM_BILLING_INCIPIT = "Eh mi devi scusare, ma Google mo vuole i sordi e ancora non gliel'abbiamo dati: oggi niente AI per te."
+_LLM_GENERIC_INCIPIT = "Eh oggi Google stava in giornata no: niente AI, tocca annà de backup."
+_LLM_REASON_OVERLOAD = "overload"
+_LLM_REASON_BILLING = "billing"
+_LLM_REASON_GENERIC = "generic"
+
+
+def _classify_llm_error(exc: Exception) -> str:
+    """Returns normalized reason for an LLM failure."""
+    if isinstance(exc, GeminiServerError):
+        return _LLM_REASON_OVERLOAD
+    if isinstance(exc, GeminiClientError):
+        msg = str(exc).lower()
+        if any(k in msg for k in ("billing", "quota", "credit", "payment")):
+            return _LLM_REASON_BILLING
+        return _LLM_REASON_OVERLOAD
+    return _LLM_REASON_GENERIC
+
+
+def _reason_to_text(reason: str) -> str:
+    if reason == _LLM_REASON_BILLING:
+        return "problema de credito"
+    if reason == _LLM_REASON_OVERLOAD:
+        return "sovraccarico lato Google"
+    return "intoppo tecnico"
+
+
+def _single_reason_incipit(reason: str) -> str:
+    if reason == _LLM_REASON_BILLING:
+        return _LLM_BILLING_INCIPIT
+    if reason == _LLM_REASON_OVERLOAD:
+        return _LLM_OVERLOAD_INCIPIT
+    return _LLM_GENERIC_INCIPIT
+
+
+def _build_combined_fallback_incipit(
+    body_attempted: bool,
+    body_ok: bool,
+    body_reason: str | None,
+    closing_attempted: bool,
+    closing_ok: bool,
+    closing_reason: str | None,
+) -> str | None:
+    if body_attempted and closing_attempted:
+        if body_ok and closing_ok:
+            return None
+        if body_ok and not closing_ok:
+            return (
+                "Google oggi ha collaborato a meta: il corpo me l'ha fatto, "
+                f"ma sul closing ha mollato ({_reason_to_text(closing_reason or _LLM_REASON_GENERIC)})."
+            )
+        if not body_ok and closing_ok:
+            return (
+                "Google oggi ha collaborato a meta: il closing me l'ha fatto, "
+                f"ma il corpo no ({_reason_to_text(body_reason or _LLM_REASON_GENERIC)})."
+            )
+
+        if body_reason == closing_reason:
+            return _single_reason_incipit(body_reason or _LLM_REASON_GENERIC)
+
+        return (
+            "Google oggi m'ha fatto il doppio pacco: "
+            f"corpo saltato ({_reason_to_text(body_reason or _LLM_REASON_GENERIC)}) "
+            f"e pure closing saltato ({_reason_to_text(closing_reason or _LLM_REASON_GENERIC)})."
+        )
+
+    if body_attempted:
+        if body_ok:
+            return None
+        return _single_reason_incipit(body_reason or _LLM_REASON_GENERIC)
+
+    if closing_attempted:
+        if closing_ok:
+            return None
+        return _single_reason_incipit(closing_reason or _LLM_REASON_GENERIC)
+
+    return None
+
+
 from carlo_bot.bootstrap.runtime import get_project_root
 from carlo_bot.infrastructure.llm import (
     generate_birthday_message,
@@ -77,7 +160,10 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
 
     # Attempts to generate the message body via LLM; falls back to the static template on any failure
     ai_generated_body: str | None = None
-    if config.gemini_api_key:
+    body_attempted = bool(config.gemini_api_key)
+    body_ok = False
+    body_error_reason: str | None = None
+    if body_attempted:
         try:
             prompt_path = get_project_root() / config.llm_prompt_file
             ai_generated_body = generate_message_body(
@@ -86,8 +172,13 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 api_key=config.gemini_api_key,
                 system_prompt_file=prompt_path,
             )
+            body_ok = True
             print(f"LLM body generated ({len(ai_generated_body)} chars)")
+        except (GeminiServerError, GeminiClientError) as exc:
+            body_error_reason = _classify_llm_error(exc)
+            print(f"LLM generation failed, using static template: {exc}")
         except Exception as exc:  # noqa: BLE001
+            body_error_reason = _classify_llm_error(exc)
             print(f"LLM generation failed, using static template: {exc}")
     else:
         print("GEMINI_API_KEY not set, using static template")
@@ -100,7 +191,10 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
         "closing_rewrite_prompt_file",
         "apps/buongiorno-bot/data/prompts/closing_rewrite_prompt.txt",
     )
-    if config.gemini_api_key and closing_rewrite_enabled:
+    closing_attempted = bool(config.gemini_api_key and closing_rewrite_enabled)
+    closing_ok = False
+    closing_error_reason: str | None = None
+    if closing_attempted:
         try:
             rewrite_prompt_path = get_project_root() / closing_rewrite_prompt_file
             rewritten_closing_candidate = rewrite_email_closing(
@@ -111,11 +205,26 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
             )
             if rewritten_closing_candidate.strip():
                 rewritten_closing = rewritten_closing_candidate.strip()
+                closing_ok = True
                 print(f"LLM closing rewritten ({len(rewritten_closing)} chars)")
             else:
+                closing_error_reason = _LLM_REASON_GENERIC
                 print("LLM closing rewrite returned empty output, using default closing")
-        except Exception as exc:  # noqa: BLE001
+        except (GeminiServerError, GeminiClientError) as exc:
+            closing_error_reason = _classify_llm_error(exc)
             print(f"LLM closing rewrite failed, using default closing: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            closing_error_reason = _classify_llm_error(exc)
+            print(f"LLM closing rewrite failed, using default closing: {exc}")
+
+    fallback_incipit = _build_combined_fallback_incipit(
+        body_attempted=body_attempted,
+        body_ok=body_ok,
+        body_reason=body_error_reason,
+        closing_attempted=closing_attempted,
+        closing_ok=closing_ok,
+        closing_reason=closing_error_reason,
+    )
 
     # Detects birthday contacts among active contacts
     birthday_contacts = pick_birthday_contacts(active_contacts)
@@ -169,6 +278,7 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 nickname=nickname,
                 birthday_section=birthday_section,
                 closing_override=rewritten_closing,
+                fallback_incipit=fallback_incipit,
             )
             html_body = build_html_body_ai(
                 ai_generated_body,
@@ -179,6 +289,7 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 nickname=nickname,
                 birthday_section=birthday_section,
                 closing_override=rewritten_closing,
+                fallback_incipit=fallback_incipit,
             )
         else:
             plain_body = build_plain_body(
@@ -190,6 +301,7 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 nickname=nickname,
                 birthday_section=birthday_section,
                 closing_override=rewritten_closing,
+                fallback_incipit=fallback_incipit,
             )
             html_body = build_html_body(
                 selected_quote,
@@ -200,6 +312,7 @@ def run_workflow(config: AppConfig, dry_run: bool) -> None:
                 nickname=nickname,
                 birthday_section=birthday_section,
                 closing_override=rewritten_closing,
+                fallback_incipit=fallback_incipit,
             )
         message = build_email_message(
             sender=config.smtp_sender,

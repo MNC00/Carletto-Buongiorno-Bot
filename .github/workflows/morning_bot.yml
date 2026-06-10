@@ -3,7 +3,7 @@ name: Carletto Buongiorno Bot
 on:
   schedule:
     # 7:00 CET (UTC+1 winter) / 8:00 CEST (UTC+2 summer)
-    - cron: "00 4 * * *"     
+    - cron: "00 2 * * *"       
   workflow_dispatch: # manual trigger for testing
 
 jobs:

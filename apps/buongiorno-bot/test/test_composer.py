@@ -184,3 +184,107 @@ def test_build_html_body_escapes_custom_closing_override():
 
     assert "<script>" not in result
     assert "&lt;script&gt;" in result
+
+
+# --- Fallback incipit tests ---
+
+
+def test_build_plain_body_includes_fallback_incipit_before_quote():
+    incipit = "Eh scusate, non oggi: a Google nun glie andava di collaborà."
+
+    result = build_plain_body(
+        "Oggi spacchi tutto.",
+        "San Gennaro",
+        "culone",
+        fallback_incipit=incipit,
+    )
+
+    assert incipit in result
+    incipit_pos = result.index(incipit)
+    quote_pos = result.index("Tieni ben a mente che")
+    assert incipit_pos < quote_pos
+
+
+def test_build_plain_body_without_fallback_incipit_has_no_google_text():
+    result = build_plain_body("Oggi spacchi tutto.", "San Gennaro", "culone")
+
+    assert "Google nun glie andava" not in result
+
+
+def test_build_plain_body_includes_fallback_incipit_only_once_not_in_closing_block():
+    incipit = "Eh mi devi scusare, ma Francesco non c'hya messo i sordi: oggi niente AI per te."
+
+    result = build_plain_body(
+        "Oggi spacchi tutto.",
+        "San Gennaro",
+        "culone",
+        fallback_incipit=incipit,
+    )
+
+    assert incipit in result
+    incipit_pos = result.index(incipit)
+    quote_pos = result.index("Tieni ben a mente che")
+    assert incipit_pos < quote_pos
+    assert result.count(incipit) == 1
+
+
+def test_build_plain_body_fallback_incipit_present_even_when_closing_override_set():
+    incipit = "Eh mi devi scusare, ma Francesco non c'hya messo i sordi: oggi niente AI per te."
+
+    result = build_plain_body(
+        "Oggi spacchi tutto.",
+        "San Gennaro",
+        "culone",
+        closing_override="Buonanotte, campione.",
+        fallback_incipit=incipit,
+    )
+
+    assert incipit in result
+    assert "Buonanotte, campione." in result
+
+
+def test_build_html_body_includes_fallback_incipit_before_quote():
+    incipit = "Eh scusate, non oggi: a Google nun glie andava di collaborà."
+
+    result = build_html_body(
+        "Oggi spacchi tutto.",
+        "San Gennaro",
+        "culone",
+        fallback_incipit=incipit,
+    )
+
+    assert incipit in result
+    incipit_pos = result.index(incipit)
+    quote_pos = result.index("Tieni ben a mente che")
+    assert incipit_pos < quote_pos
+
+
+def test_build_html_body_includes_fallback_incipit_once():
+    incipit_keyword = "Francesco non c&#x27;hya messo i sordi"
+
+    result = build_html_body(
+        "Oggi spacchi tutto.",
+        "San Gennaro",
+        "culone",
+        fallback_incipit="Eh mi devi scusare, ma Francesco non c'hya messo i sordi: oggi niente AI per te.",
+    )
+
+    assert incipit_keyword in result
+    incipit_pos = result.index(incipit_keyword)
+    quote_pos = result.index("Tieni ben a mente che")
+    assert incipit_pos < quote_pos
+    assert result.count(incipit_keyword) == 1
+
+
+def test_build_html_body_escapes_fallback_incipit():
+    incipit = "<script>alert('xss')</script>"
+
+    result = build_html_body(
+        "Oggi spacchi tutto.",
+        "San Gennaro",
+        "culone",
+        fallback_incipit=incipit,
+    )
+
+    assert "<script>" not in result
+    assert "&lt;script&gt;" in result
